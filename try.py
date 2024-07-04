@@ -1,6 +1,6 @@
-from abc import ABC, abstractmethod
 import tkinter as tk
-from tkinter import messagebox
+from abc import ABC, abstractmethod
+
 
 class Player(ABC):
     def __init__(self, symbol):
@@ -111,3 +111,108 @@ class AIPlayer(Player):
                     best = sim_score
 
         return best
+
+
+class Board:
+    def __init__(self):
+        self.board = [['' for _ in range(3)] for _ in range(3)]
+        self.moves = {'X': [], 'O': []}
+
+    def update_board(self, row, col, symbol):
+        if self.board[row][col] == '':
+            self.board[row][col] = symbol
+            self.moves[symbol].append((row, col))
+            return True
+        return False
+
+    def remove_move(self, row, col, symbol):
+        if self.board[row][col] == symbol:
+            self.board[row][col] = ''
+            self.moves[symbol].remove((row, col))
+            return True
+        return False
+
+    def is_winner(self, symbol):
+        # Check rows, columns, and diagonals for a win
+        for row in self.board:
+            if all(cell == symbol for cell in row):
+                return True
+        for col in range(3):
+            if all(self.board[row][col] == symbol for row in range(3)):
+                return True
+        if all(self.board[i][i] == symbol for i in range(3)) or all(self.board[i][2 - i] == symbol for i in range(3)):
+            return True
+        return False
+
+    def is_full(self):
+        return all(cell != '' for row in self.board for cell in row)
+
+    def get_empty_cells(self):
+        return [(r, c) for r in range(3) for c in range(3) if self.board[r][c] == '']
+
+
+class GameGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Tic Tac Toe")
+        self.board = Board()
+        self.current_player = HumanPlayer('X')
+        self.ai_player = AIPlayer('O')
+        self.buttons = [[None for _ in range(3)] for _ in range(3)]
+        self.create_widgets()
+
+    def create_widgets(self):
+        for r in range(3):
+            for c in range(3):
+                button = tk.Button(self.root, text='', font='normal 20 bold', height=3, width=6,
+                                   command=lambda r=r, c=c: self.on_button_click(r, c))
+                button.grid(row=r, column=c)
+                self.buttons[r][c] = button
+
+    def on_button_click(self, row, col):
+        if self.board.update_board(row, col, self.current_player.symbol):
+            self.buttons[row][col].config(text=self.current_player.symbol)
+            if self.check_game_over(self.current_player.symbol):
+                return
+            self.current_player = self.ai_player if self.current_player == self.current_player else self.current_player
+            self.ai_move()
+
+    def ai_move(self):
+        self.current_player.make_move(self.board)
+        self.update_buttons()
+        if self.check_game_over(self.current_player.symbol):
+            return
+        self.current_player = HumanPlayer('X')
+
+    def update_buttons(self):
+        for r in range(3):
+            for c in range(3):
+                if self.board.board[r][c] == 'X':
+                    self.buttons[r][c].config(text='X')
+                elif self.board.board[r][c] == 'O':
+                    self.buttons[r][c].config(text='O')
+                else:
+                    self.buttons[r][c].config(text='')
+
+    def check_game_over(self, symbol):
+        if self.board.is_winner(symbol):
+            self.show_message(f"{symbol} wins!")
+            return True
+        elif self.board.is_full():
+            self.show_message("It's a draw!")
+            return True
+        return False
+
+    def show_message(self, message):
+        top = tk.Toplevel(self.root)
+        top.title("Game Over")
+        msg = tk.Message(top, text=message, font='normal 20 bold')
+        msg.pack()
+        button = tk.Button(top, text="OK", command=self.root.quit)
+        button.pack()
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    game = GameGUI(root)
+    root.mainloop()
